@@ -16,7 +16,6 @@ const getDashboardStats = asyncHandler(async (req, res) => {
             .select('*')
             .eq('date', today);
 
-        console.log("Appointments : ", todayAppointments)
         if (appointmentsError) {
             res.status(400);
             throw new Error(appointmentsError.message);

@@ -3,12 +3,13 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
 const path = require('path');
-const { errorHandler } = require('./middlewares/errorMiddleware');
+const { notFound, errorHandler } = require('./middlewares/errorMiddleware');
 
 // Routes
 const userRoutes = require('./routes/userRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const patientRoutes = require('./routes/patientRoutes');
+const patientAppointmentRoutes = require('./routes/patientAppointmentRoutes');
 const billingRoutes = require('./routes/billingRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
@@ -34,6 +35,7 @@ if (process.env.NODE_ENV === 'development') {
 app.use('/api/users', userRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/patients', patientRoutes);
+app.use('/api/patients/:patientId/appointments', patientAppointmentRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/dashboard', dashboardRoutes);
@@ -44,6 +46,7 @@ app.get('/api/status', (req, res) => {
 });
 
 // Error handling middleware
+app.use(notFound);
 app.use(errorHandler);
 
 // Serve static assets in production

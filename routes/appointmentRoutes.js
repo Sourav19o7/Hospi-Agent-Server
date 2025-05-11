@@ -7,13 +7,14 @@ const {
   createAppointment,
   updateAppointment,
   deleteAppointment,
+  getAppointmentStats,
 } = require('../controllers/appointmentController');
 const { protect } = require('../middlewares/authMiddleware');
 
-// All routes are protected
+// All routes are protected - require authentication
 router.use(protect);
 
-// Route: /api/appointments
+// Routes: /api/appointments
 router.route('/')
   .get(getAppointments)
   .post(createAppointment);
@@ -21,7 +22,10 @@ router.route('/')
 // Route: /api/appointments/today
 router.get('/today', getTodayAppointments);
 
-// Route: /api/appointments/:id
+// Route: /api/appointments/stats
+router.get('/stats', getAppointmentStats);
+
+// Routes: /api/appointments/:id
 router.route('/:id')
   .get(getAppointmentById)
   .put(updateAppointment)
