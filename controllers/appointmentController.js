@@ -1,6 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const { supabaseAdmin } = require('../config/supabase');
-
+const { scheduleReminders, sendEmail } = require("../utils/helpers");
 /**
  * @desc    Get all appointments
  * @route   GET /api/appointments
@@ -8,95 +8,95 @@ const { supabaseAdmin } = require('../config/supabase');
  */
 const getAppointments = asyncHandler(async (req, res) => {
   try {
-    const { 
-      date, 
-      status, 
-      start_date, 
-      end_date, 
+    const {
+      date,
+      status,
+      start_date,
+      end_date,
       patient_id,
       type,
       limit,
-      page = 1
+      page = 1,
     } = req.query;
-    
-    let query = supabaseAdmin
-      .from('appointments')
-      .select(`
+
+    let query = supabaseAdmin.from("appointments").select(`
         *,
         patients(id, name, contact, email, birth_date, gender)
       `);
-      
+
     // Filter by date if provided
     if (date) {
-      query = query.eq('date', date);
+      query = query.eq("date", date);
     }
-    
+
     // Filter by status if provided
     if (status) {
-      query = query.eq('status', status);
+      query = query.eq("status", status);
     }
-    
+
     // Filter by patient if provided
     if (patient_id) {
-      query = query.eq('patient_id', patient_id);
+      query = query.eq("patient_id", patient_id);
     }
-    
+
     // Filter by appointment type if provided
     if (type) {
-      query = query.eq('type', type);
+      query = query.eq("type", type);
     }
-    
+
     // Filter by date range if provided
     if (start_date && end_date) {
-      query = query.gte('date', start_date).lte('date', end_date);
+      query = query.gte("date", start_date).lte("date", end_date);
     } else if (start_date) {
-      query = query.gte('date', start_date);
+      query = query.gte("date", start_date);
     } else if (end_date) {
-      query = query.lte('date', end_date);
+      query = query.lte("date", end_date);
     }
-    
+
     // Order by date and time
-    query = query.order('date', { ascending: true }).order('time', { ascending: true });
-    
+    query = query
+      .order("date", { ascending: true })
+      .order("time", { ascending: true });
+
     // Add pagination if limit is provided
     if (limit) {
       const pageSize = parseInt(limit);
       const pageIndex = parseInt(page) - 1;
       const from = pageSize * pageIndex;
       const to = from + pageSize - 1;
-      
+
       query = query.range(from, to);
     }
-    
+
     const { data: appointments, error, count } = await query;
-    
+
     if (error) {
       res.status(400);
       throw new Error(error.message);
     }
-    
+
     // If limit was provided, get total count for pagination
     if (limit) {
       const { count: totalCount, error: countError } = await supabaseAdmin
-        .from('appointments')
-        .select('*', { count: 'exact', head: true });
-        
+        .from("appointments")
+        .select("*", { count: "exact", head: true });
+
       if (countError) {
         res.status(400);
         throw new Error(countError.message);
       }
-      
+
       return res.status(200).json({
         data: appointments,
         pagination: {
           total: totalCount,
           page: parseInt(page),
           limit: parseInt(limit),
-          pages: Math.ceil(totalCount / parseInt(limit))
-        }
+          pages: Math.ceil(totalCount / parseInt(limit)),
+        },
       });
     }
-    
+
     res.status(200).json(appointments);
   } catch (error) {
     res.status(500);
@@ -111,22 +111,24 @@ const getAppointments = asyncHandler(async (req, res) => {
  */
 const getTodayAppointments = asyncHandler(async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    
+    const today = new Date().toISOString().split("T")[0];
+
     const { data: appointments, error } = await supabaseAdmin
-      .from('appointments')
-      .select(`
+      .from("appointments")
+      .select(
+        `
         *,
         patients(id, name, contact, email, birth_date, gender)
-      `)
-      .eq('date', today)
-      .order('time', { ascending: true });
-      
+      `
+      )
+      .eq("date", today)
+      .order("time", { ascending: true });
+
     if (error) {
       res.status(400);
       throw new Error(error.message);
     }
-    
+
     res.status(200).json(appointments);
   } catch (error) {
     res.status(500);
@@ -142,25 +144,27 @@ const getTodayAppointments = asyncHandler(async (req, res) => {
 const getAppointmentById = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const { data: appointment, error } = await supabaseAdmin
-      .from('appointments')
-      .select(`
+      .from("appointments")
+      .select(
+        `
         *,
         patients(*)
-      `)
-      .eq('id', id)
+      `
+      )
+      .eq("id", id)
       .single();
-      
+
     if (error) {
       res.status(404);
-      throw new Error('Appointment not found');
+      throw new Error("Appointment not found");
     }
-    
+
     res.status(200).json(appointment);
   } catch (error) {
     res.status(error.statusCode || 500);
-    throw new Error(error.message || 'Error retrieving appointment');
+    throw new Error(error.message || "Error retrieving appointment");
   }
 });
 
@@ -171,43 +175,53 @@ const getAppointmentById = asyncHandler(async (req, res) => {
  */
 const createAppointment = asyncHandler(async (req, res) => {
   try {
-    const { patient_id, date, time, type, notes, status = 'pending' } = req.body;
-    
+    const {
+      patient_id,
+      date,
+      time,
+      type,
+      notes,
+      status = "pending",
+    } = req.body;
+
     // Check for required fields
     if (!patient_id || !date || !time || !type) {
       res.status(400);
-      throw new Error('Please provide patient, date, time, and appointment type');
+      throw new Error(
+        "Please provide patient, date, time, and appointment type"
+      );
     }
-    
+
     // Check if patient exists
     const { data: patient, error: patientError } = await supabaseAdmin
-      .from('patients')
-      .select('id')
-      .eq('id', patient_id)
+      .from("patients")
+      .select("id, email, name")
+      .eq("id", patient_id)
       .single();
-      
+
     if (patientError || !patient) {
       res.status(404);
-      throw new Error('Patient not found');
+      throw new Error("Patient not found");
     }
-    
+
     // Check if time slot is available
-    const { data: existingAppointment, error: existingError } = await supabaseAdmin
-      .from('appointments')
-      .select('*')
-      .eq('date', date)
-      .eq('time', time)
-      .not('status', 'eq', 'cancelled')
-      .maybeSingle();
-      
+    const { data: existingAppointment, error: existingError } =
+      await supabaseAdmin
+        .from("appointments")
+        .select("*")
+        .eq("date", date)
+        .eq("time", time)
+        .not("status", "eq", "cancelled")
+        .maybeSingle();
+
     if (existingAppointment) {
       res.status(400);
-      throw new Error('This time slot is already booked');
+      throw new Error("This time slot is already booked");
     }
-    
+
     // Create appointment in Supabase
     const { data: newAppointment, error } = await supabaseAdmin
-      .from('appointments')
+      .from("appointments")
       .insert([
         {
           patient_id,
@@ -221,40 +235,45 @@ const createAppointment = asyncHandler(async (req, res) => {
       ])
       .select()
       .single();
-      
+
     if (error) {
       res.status(400);
       throw new Error(error.message);
     }
-    
+
     // Update patient's last visit date if appointment is for today
-    const today = new Date().toISOString().split('T')[0];
-    if (date === today && status === 'confirmed') {
+    const today = new Date().toISOString().split("T")[0];
+    if (date === today && status === "confirmed") {
       await supabaseAdmin
-        .from('patients')
+        .from("patients")
         .update({ last_visit: date })
-        .eq('id', patient_id);
+        .eq("id", patient_id);
     }
-    
+
     // Get complete appointment data with patient information
-    const { data: appointmentWithPatient, error: fetchError } = await supabaseAdmin
-      .from('appointments')
-      .select(`
+    const { data: appointmentWithPatient, error: fetchError } =
+      await supabaseAdmin
+        .from("appointments")
+        .select(
+          `
         *,
         patients(id, name, contact, email, birth_date, gender)
-      `)
-      .eq('id', newAppointment.id)
-      .single();
-    
+      `
+        )
+        .eq("id", newAppointment.id)
+        .single();
+
     if (fetchError) {
       res.status(400);
       throw new Error(fetchError.message);
     }
-    
+    console.log(patient);
+    sendEmail(date, time, type, patient.name, patient.email, "confirmation");
+    scheduleReminders(date, time, type, patient.name, patient.email);
     res.status(201).json(appointmentWithPatient);
   } catch (error) {
     res.status(error.statusCode || 500);
-    throw new Error(error.message || 'Error creating appointment');
+    throw new Error(error.message || "Error creating appointment");
   }
 });
 
