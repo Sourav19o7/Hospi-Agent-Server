@@ -13,6 +13,7 @@ const patientAppointmentRoutes = require('./routes/patientAppointmentRoutes');
 const billingRoutes = require('./routes/billingRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const insightRoutes = require('./routes/insightRoutes')
 
 // Load environment variables
 dotenv.config();
@@ -39,6 +40,7 @@ app.use('/api/patients/:patientId/appointments', patientAppointmentRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/insights', insightRoutes)
 
 // Basic route for testing
 app.get('/api/status', (req, res) => {
