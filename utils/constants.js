@@ -226,7 +226,7 @@ const reminder_template = `<!DOCTYPE html>
 
 const subjects = {
   confirmation: "Confirmation for your Appointment",
-  reminder: "Reminder for your Appointment",
+  reminder: "Reminder for your Appointment, dont miss it!",
 };
 
 module.exports = {
