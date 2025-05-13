@@ -3,7 +3,13 @@ const {
   subjects,
   reminder_template,
 } = require("./constants");
+const dotenv = require("dotenv");
 const { sesClient } = require("../config/aws");
+const sendgrid = require("@sendgrid/mail");
+const schedule = require("node-schedule");
+
+dotenv.config();
+sendgrid.setApiKey(process.env.SENDGRID_API_KEY);
 
 function formatDate(dateString) {
   const date = new Date(dateString);
@@ -82,6 +88,48 @@ async function sendEmail(
   return ses_response;
 }
 
+async function sendEmailSendGrid(
+  date,
+  time,
+  type,
+  patient_name,
+  email,
+  email_type = "confirmation"
+) {
+  const ap_date = formatDate(date);
+  const ap_time = formatTime(time);
+  const template =
+    email_type == "confirmation" ? confirmation_template : reminder_template;
+  const body = template
+    .replace("$PATIENT$", patient_name)
+    .replace("$DATE$", ` ${ap_date}`)
+    .replace("$TIME$", ` ${ap_time}`)
+    .replace("$TYPE$", ` ${type}`);
+  const params = {
+    to: [email],
+    from: "HospiAgent <sourav.dey0147@gmail.com>",
+    subject: subjects[email_type],
+    html: body,
+  };
+  const sendgrid_response = await sendgrid
+    .send(params)
+    .then(() => {
+      return {
+        id: 1,
+        status: 200,
+        message: "Email sent successfully, sent by Sendgrid",
+      };
+    })
+    .catch((error) => {
+      console.log(error);
+      return { id: 0, status: 400, error: error.message };
+    });
+  if (sendgrid_response.status != 200) {
+    console.log(sendgrid_response.error);
+    return { id: 0, status: 400, error: sendgrid_response.error };
+  }
+  return sendgrid_response;
+}
 // Define getCurrentDateIST() function first
 function getCurrentDateIST() {
   const options = { timeZone: "Asia/Kolkata" };
@@ -97,42 +145,99 @@ async function scheduleReminders(date, time, type, patient_name, email) {
       (appointmentDateTime.getTime() - now.getTime()) / (1000 * 60);
     console.log(`Appointment is in ${diff_mins} minutes`);
 
-    if (diff_mins < 1440) {
-      setTimeout(
-        async () => {
-          console.log(
-            `Sending 24-hour reminder (delayed to 5 mins from now) for ${patient_name}`
-          );
-          await sendEmail(date, time, type, patient_name, email, "reminder");
-        },
-        5 * 60 * 1000
-      );
-    } else {
-      const timeUntil24HrReminder = diff_mins - 1440;
+    // Calculate when reminders should be sent
+    const reminder24h = new Date(
+      appointmentDateTime.getTime() - 24 * 60 * 60 * 1000
+    );
+    const reminder1h = new Date(
+      appointmentDateTime.getTime() - 1 * 60 * 60 * 1000
+    );
 
-      setTimeout(
-        async () => {
+    // Handle 24h reminder
+    if (diff_mins < 1440) {
+      // If appointment is less than 24h away, schedule for 5 mins from now
+      const fiveMinFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+
+      // Only schedule the 24h reminder if it's at least 30 minutes before the 1h reminder
+      // or if the 1h reminder has already passed
+      if (diff_mins > 60) {
+        schedule.scheduleJob(
+          `24hr-${patient_name}-${Date.now()}`,
+          fiveMinFromNow,
+          async function () {
+            console.log(`Sending 24-hour reminder for ${patient_name}`);
+            await sendEmailSendGrid(
+              date,
+              time,
+              type,
+              patient_name,
+              email,
+              "reminder"
+            );
+          }
+        );
+        console.log(
+          `Scheduled 24-hour reminder for ${patient_name} at ${fiveMinFromNow}`
+        );
+      } else {
+        console.log(
+          `Skipping 24-hour reminder for ${patient_name} to avoid duplicate emails`
+        );
+      }
+    } else {
+      // Schedule for exactly 24h before appointment
+      schedule.scheduleJob(
+        `24hr-${patient_name}-${Date.now()}`,
+        reminder24h,
+        async function () {
           console.log(`Sending 24-hour reminder for ${patient_name}`);
-          await sendEmail(date, time, type, patient_name, email, "reminder");
-        },
-        timeUntil24HrReminder * 60 * 1000
+          await sendEmailSendGrid(
+            date,
+            time,
+            type,
+            patient_name,
+            email,
+            "reminder"
+          );
+        }
+      );
+      console.log(
+        `Scheduled 24-hour reminder for ${patient_name} at ${reminder24h}`
       );
     }
 
+    // Handle 1h reminder
     if (diff_mins > 60) {
-      const timeUntil1HrReminder = diff_mins - 60;
-
-      setTimeout(
-        async () => {
+      // Schedule for exactly 1h before appointment
+      schedule.scheduleJob(
+        `1hr-${patient_name}-${Date.now()}`,
+        reminder1h,
+        async function () {
           console.log(`Sending 1-hour reminder for ${patient_name}`);
-          await sendEmail(date, time, type, patient_name, email, "reminder");
-        },
-        timeUntil1HrReminder * 60 * 1000
-      ); // convert minutes to milliseconds
+          await sendEmailSendGrid(
+            date,
+            time,
+            type,
+            patient_name,
+            email,
+            "reminder"
+          );
+        }
+      );
+      console.log(
+        `Scheduled 1-hour reminder for ${patient_name} at ${reminder1h}`
+      );
     } else {
-      // If appointment is less than 1 hour away, send 1hr reminder immediately
+      // If appointment is less than 1h away, send immediately
       console.log(`Sending immediate 1-hour reminder for ${patient_name}`);
-      await sendEmail(date, time, type, patient_name, email, "reminder");
+      await sendEmailSendGrid(
+        date,
+        time,
+        type,
+        patient_name,
+        email,
+        "reminder"
+      );
     }
 
     return { success: true, message: "Reminders scheduled successfully" };
@@ -156,20 +261,20 @@ function extractOutput(message) {
 
 // // Solution: Wrap the await call in an async function and execute it
 // async function main() {
-//   const response = await sendEmail(
+//   await sendEmailSendGrid(
 //     "2025-05-16",
 //     "11:30:00",
 //     "Root Canal",
 //     "Devesh",
 //     "deveshshetty66@gmail.com"
 //   );
-//   console.log(response);
 // }
 
 // main().catch((err) => console.error(err));
 
 module.exports = {
   sendEmail,
+  sendEmailSendGrid,
   scheduleReminders,
   extractOutput,
 };

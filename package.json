@@ -21,6 +21,7 @@
     "dependencies": {
         "@aws-sdk/client-ses": "^3.806.0",
         "@google/genai": "^0.13.0",
+        "@sendgrid/mail": "^8.1.5",
         "@supabase/supabase-js": "^2.39.8",
         "bcryptjs": "^2.4.3",
         "cors": "^2.8.5",
@@ -31,6 +32,7 @@
         "morgan": "^1.10.0",
         "multer": "^1.4.5-lts.1",
         "node-cron": "^4.0.3",
+        "node-schedule": "^2.1.1",
         "nodemailer": "^6.10.1",
         "qs": "^6.14.0",
         "resend": "^4.5.1",
