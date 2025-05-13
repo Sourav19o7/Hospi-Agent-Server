@@ -20,6 +20,7 @@
     "license": "MIT",
     "dependencies": {
         "@aws-sdk/client-ses": "^3.806.0",
+        "@google/genai": "^0.13.0",
         "@supabase/supabase-js": "^2.39.8",
         "bcryptjs": "^2.4.3",
         "cors": "^2.8.5",

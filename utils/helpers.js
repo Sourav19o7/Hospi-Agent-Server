@@ -142,6 +142,18 @@ async function scheduleReminders(date, time, type, patient_name, email) {
   }
 }
 
+function extractOutput(message) {
+  const answerRegex = /<output>(.*?)<\/output>/gs;
+  const answerTexts = [];
+
+  let match;
+
+  while ((match = answerRegex.exec(message)) !== null) {
+    answerTexts.push(match[1].trim());
+  }
+  return JSON.parse(answerTexts[0]);
+}
+
 // // Solution: Wrap the await call in an async function and execute it
 // async function main() {
 //   const response = await sendEmail(
@@ -159,4 +171,5 @@ async function scheduleReminders(date, time, type, patient_name, email) {
 module.exports = {
   sendEmail,
   scheduleReminders,
+  extractOutput,
 };
