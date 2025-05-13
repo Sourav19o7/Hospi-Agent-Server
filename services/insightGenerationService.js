@@ -35,11 +35,11 @@ const generateSchedulingInsights = async () => {
     }
 
     // Send data to MCP for analysis
-    const insights = await mcpService.analyzeSchedulingData("scheduling", {
+    const mcp_repsonse = await mcpService.analyzeSchedulingData("scheduling", {
       appointments_data: appointments,
       doctors_data: doctors,
     });
-
+    const insights = extractOutput(mcp_repsonse);
     // Add creation timestamp
     const timestampedInsights = insights.map((insight) => ({
       ...insight,
@@ -84,11 +84,11 @@ const generateInventoryInsights = async () => {
     }
 
     // Send data to MCP for analysis
-    const insights = await mcpService.analyzeInventoryData("inventory", {
+    const mcp_repsonse = await mcpService.analyzeInventoryData("inventory", {
       inventory_data: inventory,
       upcoming_appointments_data: upcomingAppointments,
     });
-
+    const insights = extractOutput(mcp_repsonse);
     // Add creation timestamp
     const timestampedInsights = insights.map((insight) => ({
       ...insight,
@@ -180,11 +180,11 @@ const generatePatientInsights = async () => {
     }
 
     // Send data to MCP for analysis
-    const insights = await mcpService.generate_insights("patients", {
+    const mcp_repsonse = await mcpService.generate_insights("patients", {
       patients_data: patients,
       patient_appointments: patientAppointments,
     });
-
+    const insights = extractOutput(mcp_repsonse);
     // Add creation timestamp
     const timestampedInsights = insights.map((insight) => ({
       ...insight,
