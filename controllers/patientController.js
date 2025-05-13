@@ -112,6 +112,7 @@ const updatePatient = asyncHandler(async (req, res) => {
     medical_history,
     status,
     last_visit,
+    patient_document
   } = req.body;
   
   // Check if patient exists
@@ -138,6 +139,7 @@ const updatePatient = asyncHandler(async (req, res) => {
   if (medical_history !== undefined) updateData.medical_history = medical_history;
   if (status !== undefined) updateData.status = status;
   if (last_visit !== undefined) updateData.last_visit = last_visit;
+  if (patient_document !== undefined) updateData.patient_document = patient_document
   
   // Update patient in Supabase
   const { data: updatedPatient, error } = await supabaseAdmin
