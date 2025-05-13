@@ -1,6 +1,9 @@
 // controllers/insightController.js - Updated implementation
 const asyncHandler = require('express-async-handler');
 const { supabaseAdmin } = require('../config/supabase');
+const {
+  generateRevenueInsights,
+} = require("../services/insightGenerationService");
 
 /**
  * @desc    Get all insights
