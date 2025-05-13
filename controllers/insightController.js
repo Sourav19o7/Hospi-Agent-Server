@@ -3,6 +3,9 @@ const asyncHandler = require('express-async-handler');
 const { supabaseAdmin } = require('../config/supabase');
 const {
   generateRevenueInsights,
+  generatePatientInsights,
+  generateInventoryInsights,
+  generateSchedulingInsights,
 } = require("../services/insightGenerationService");
 
 /**
