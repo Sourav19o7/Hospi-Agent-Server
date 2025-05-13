@@ -35,7 +35,7 @@ const generateSchedulingInsights = async () => {
     }
 
     // Send data to MCP for analysis
-    const mcp_repsonse = await mcpService.analyzeSchedulingData("scheduling", {
+    const mcp_repsonse = await mcpService.generate_insights("scheduling", {
       appointments_data: appointments,
       doctors_data: doctors,
     });
@@ -84,7 +84,7 @@ const generateInventoryInsights = async () => {
     }
 
     // Send data to MCP for analysis
-    const mcp_repsonse = await mcpService.analyzeInventoryData("inventory", {
+    const mcp_repsonse = await mcpService.generate_insights("inventory", {
       inventory_data: inventory,
       upcoming_appointments_data: upcomingAppointments,
     });
