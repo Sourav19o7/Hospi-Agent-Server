@@ -1,7 +1,6 @@
-// controllers/insightController.js
+// controllers/insightController.js - Updated implementation
 const asyncHandler = require('express-async-handler');
 const { supabaseAdmin } = require('../config/supabase');
-const { generateSchedulingInsights, generateInventoryInsights, generateRevenueInsights, generatePatientInsights } = require('../services/insightGenerationService');
 
 /**
  * @desc    Get all insights
@@ -12,7 +11,6 @@ const getInsights = asyncHandler(async (req, res) => {
     try {
         const { category, status } = req.query;
 
-        console.log(category + " " + status)
         let query = supabaseAdmin
             .from('insights')
             .select('*')
@@ -81,8 +79,6 @@ const getInsightStats = asyncHandler(async (req, res) => {
             .from('insights')
             .select('*', { count: 'exact', head: true });
 
-        console.log(totalInsights)
-
         if (countError) {
             res.status(400);
             throw new Error(countError.message);
@@ -139,10 +135,18 @@ const getInsightStats = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const applyInsight = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    
+    // Use a transaction to ensure all operations are atomic
+    const { data, error } = await supabaseAdmin.rpc('begin_transaction');
+    
+    if (error) {
+        res.status(500);
+        throw new Error(`Transaction error: ${error.message}`);
+    }
+    
     try {
-        const { id } = req.params;
-
-        // Get the insight details
+        // 1. Get the insight details
         const { data: insight, error: getError } = await supabaseAdmin
             .from('insights')
             .select('*')
@@ -154,67 +158,103 @@ const applyInsight = asyncHandler(async (req, res) => {
             throw new Error('Insight not found');
         }
 
-        // Check if insight is already applied or dismissed
+        // 2. Check if insight is already applied or dismissed
         if (insight.status !== 'pending') {
             res.status(400);
             throw new Error(`Insight already ${insight.status}`);
         }
-
-        // Apply the insight based on its category and specific details
-        let applyResult;
-
+        
+        // 3. Create a record in insight_applications
+        const { data: application, error: appError } = await supabaseAdmin
+            .from('insight_applications')
+            .insert({
+                insight_id: id,
+                applied_by: req.user.id,
+                status: 'in_progress',
+                notes: `Applying ${insight.category} insight`
+            })
+            .select()
+            .single();
+            
+        if (appError) {
+            await supabaseAdmin.rpc('rollback_transaction');
+            res.status(400);
+            throw new Error(`Error creating application record: ${appError.message}`);
+        }
+        
+        // 4. Process the insight based on category
+        let result = { changes: [], insights: 0 };
+        
         switch (insight.category) {
             case 'scheduling':
-                // Logic to apply scheduling insights
-                // e.g., Reschedule appointments, adjust doctor schedules, etc.
-                applyResult = await applySchedulingInsight(insight);
+                result = await applySchedulingInsight(insight, req.user.id);
                 break;
-
+                
             case 'inventory':
-                // Logic to apply inventory insights
-                // e.g., Create purchase orders, adjust reorder thresholds, etc.
-                applyResult = await applyInventoryInsight(insight);
+                result = await applyInventoryInsight(insight, req.user.id);
                 break;
-
+                
             case 'revenue':
-                // Logic to apply revenue insights
-                // e.g., Adjust pricing, create billing campaigns, etc.
-                applyResult = await applyRevenueInsight(insight);
+                result = await applyRevenueInsight(insight, req.user.id);
                 break;
-
+                
             case 'patients':
-                // Logic to apply patient insights
-                // e.g., Send reminders, flag patients for follow-up, etc.
-                applyResult = await applyPatientInsight(insight);
+                result = await applyPatientInsight(insight, req.user.id);
                 break;
-
+                
             default:
+                await supabaseAdmin.rpc('rollback_transaction');
                 res.status(400);
                 throw new Error('Invalid insight category');
         }
-
-        // Update insight status to applied
-        const { data: updatedInsight, error: updateError } = await supabaseAdmin
+        
+        // 5. Update the insight status
+        const { error: updateError } = await supabaseAdmin
             .from('insights')
             .update({
                 status: 'applied',
                 updated_at: new Date().toISOString()
             })
-            .eq('id', id)
-            .select()
-            .single();
-
+            .eq('id', id);
+            
         if (updateError) {
+            await supabaseAdmin.rpc('rollback_transaction');
             res.status(400);
-            throw new Error(updateError.message);
+            throw new Error(`Error updating insight: ${updateError.message}`);
         }
-
+        
+        // 6. Update the application record with results
+        const { error: appUpdateError } = await supabaseAdmin
+            .from('insight_applications')
+            .update({
+                status: 'completed',
+                result: JSON.stringify(result)
+            })
+            .eq('id', application.id);
+            
+        if (appUpdateError) {
+            await supabaseAdmin.rpc('rollback_transaction');
+            res.status(400);
+            throw new Error(`Error updating application: ${appUpdateError.message}`);
+        }
+        
+        // 7. Commit the transaction
+        await supabaseAdmin.rpc('commit_transaction');
+        
+        // 8. Return success response
         res.status(200).json({
-            message: 'Insight applied successfully',
-            insight: updatedInsight,
-            result: applyResult
+            message: `${insight.category.charAt(0).toUpperCase() + insight.category.slice(1)} insight applied successfully`,
+            insight,
+            result: {
+                applicationId: application.id,
+                applicationTime: application.application_time,
+                ...result
+            }
         });
     } catch (error) {
+        // Make sure to rollback on any error
+        await supabaseAdmin.rpc('rollback_transaction');
+        
         res.status(error.statusCode || 500);
         throw new Error(error.message || 'Error applying insight');
     }
@@ -327,65 +367,302 @@ const generateInsights = asyncHandler(async (req, res) => {
     }
 });
 
-// Helper functions to apply various types of insights
-const applySchedulingInsight = async (insight) => {
-    // Implementation will depend on the specific insight's data
-    // This could involve rescheduling appointments, adjusting time slots, etc.
-
-    // Example implementation:
-    const { data, error } = await supabaseAdmin.rpc('apply_scheduling_insight', {
-        insight_id: insight.id,
-        insight_data: insight.data
-    });
-
-    if (error) throw new Error(`Failed to apply scheduling insight: ${error.message}`);
-
-    return data;
+/**
+ * Implementation for applying scheduling insights
+ */
+const applySchedulingInsight = async (insight, userId) => {
+    try {
+        const changes = [];
+        const data = insight.data;
+        
+        // Make sure we have valid data to work with
+        if (!data || !data.appointments || !Array.isArray(data.appointments)) {
+            return { changes: [], insights: 0 };
+        }
+        
+        // Process each appointment in the insight
+        for (const apt of data.appointments) {
+            // Get the appointment to update
+            const { data: appointment, error: getError } = await supabaseAdmin
+                .from('appointments')
+                .select('*')
+                .eq('id', apt.id)
+                .single();
+                
+            if (getError || !appointment) {
+                console.error(`Appointment ${apt.id} not found`);
+                continue;
+            }
+            
+            // Update the appointment time
+            const { data: updatedApt, error: updateError } = await supabaseAdmin
+                .from('appointments')
+                .update({
+                    time: apt.newTime,
+                    updated_at: new Date().toISOString(),
+                    updated_by: userId
+                })
+                .eq('id', apt.id)
+                .select()
+                .single();
+                
+            if (updateError) {
+                console.error(`Failed to update appointment ${apt.id}: ${updateError.message}`);
+                continue;
+            }
+            
+            // Get patient details for the change record
+            const { data: patient, error: patientError } = await supabaseAdmin
+                .from('patients')
+                .select('name')
+                .eq('id', appointment.patient_id)
+                .single();
+                
+            // Add to the changes list
+            changes.push({
+                appointment_id: apt.id,
+                patient_id: appointment.patient_id,
+                patient_name: patient?.name || "Unknown Patient",
+                old_time: apt.oldTime,
+                new_time: apt.newTime,
+                date: appointment.date
+            });
+        }
+        
+        return { changes, insights: 0 };
+    } catch (error) {
+        console.error('Error applying scheduling insight:', error);
+        throw new Error(`Failed to apply scheduling insight: ${error.message}`);
+    }
 };
 
-const applyInventoryInsight = async (insight) => {
-    // Implementation for inventory insights
-    // This could involve creating purchase orders, updating reorder levels, etc.
-
-    // Example implementation:
-    const { data, error } = await supabaseAdmin.rpc('apply_inventory_insight', {
-        insight_id: insight.id,
-        insight_data: insight.data
-    });
-
-    if (error) throw new Error(`Failed to apply inventory insight: ${error.message}`);
-
-    return data;
+/**
+ * Implementation for applying inventory insights
+ */
+const applyInventoryInsight = async (insight, userId) => {
+    try {
+        const changes = [];
+        const data = insight.data;
+        
+        // Make sure we have valid data to work with
+        if (!data || !data.itemsToRestock || !Array.isArray(data.itemsToRestock)) {
+            return { changes: [], insights: 0 };
+        }
+        
+        // Create a purchase order
+        const { data: purchaseOrder, error: poError } = await supabaseAdmin
+            .from('purchase_orders')
+            .insert({
+                order_date: new Date().toISOString().split('T')[0],
+                expected_delivery: data.suggestedDate,
+                total_amount: data.totalCost,
+                status: 'pending',
+                created_by: userId,
+                notes: `Generated from inventory insight ${insight.id}`
+            })
+            .select()
+            .single();
+            
+        if (poError) {
+            throw new Error(`Failed to create purchase order: ${poError.message}`);
+        }
+        
+        // Add items to the purchase order
+        for (const item of data.itemsToRestock) {
+            const orderQuantity = item.suggestedStock - item.currentStock;
+            const totalPrice = orderQuantity * item.unitPrice;
+            
+            // Skip items that don't need ordering
+            if (orderQuantity <= 0) continue;
+            
+            // Add the item to the purchase order
+            const { error: itemError } = await supabaseAdmin
+                .from('purchase_order_items')
+                .insert({
+                    purchase_order_id: purchaseOrder.id,
+                    inventory_item_id: item.id,
+                    quantity: orderQuantity,
+                    unit_price: item.unitPrice,
+                    total_price: totalPrice
+                });
+                
+            if (itemError) {
+                console.error(`Failed to add item ${item.id} to purchase order: ${itemError.message}`);
+                continue;
+            }
+            
+            // Add to the changes list
+            changes.push({
+                item_id: item.id,
+                item_name: item.name,
+                quantity: orderQuantity,
+                unit_price: item.unitPrice,
+                total_price: totalPrice
+            });
+        }
+        
+        // Add a record of the purchase order creation
+        changes.unshift({
+            action: 'create_order',
+            purchase_order_id: purchaseOrder.id,
+            items_count: changes.length,
+            total_amount: data.totalCost,
+            expected_delivery: data.suggestedDate
+        });
+        
+        return { changes, insights: 0 };
+    } catch (error) {
+        console.error('Error applying inventory insight:', error);
+        throw new Error(`Failed to apply inventory insight: ${error.message}`);
+    }
 };
 
-const applyRevenueInsight = async (insight) => {
-    // Implementation for revenue insights
-    // This could involve adjusting service prices, creating promotions, etc.
-
-    // Example implementation:
-    const { data, error } = await supabaseAdmin.rpc('apply_revenue_insight', {
-        insight_id: insight.id,
-        insight_data: insight.data
-    });
-
-    if (error) throw new Error(`Failed to apply revenue insight: ${error.message}`);
-
-    return data;
+/**
+ * Implementation for applying revenue insights
+ */
+const applyRevenueInsight = async (insight, userId) => {
+    try {
+        const changes = [];
+        const data = insight.data;
+        
+        // Make sure we have valid data to work with
+        if (!data) {
+            return { changes: [], insights: 0 };
+        }
+        
+        // Process price changes if available
+        if (data.priceChanges && Array.isArray(data.priceChanges)) {
+            for (const priceChange of data.priceChanges) {
+                // In a real implementation, you would update service prices in your database
+                // For this example, we'll just record the changes
+                changes.push({
+                    service_name: priceChange.serviceName,
+                    old_price: priceChange.currentPrice,
+                    new_price: priceChange.suggestedPrice,
+                    potential_revenue: priceChange.potentialRevenue
+                });
+            }
+        }
+        
+        // Process billing campaign if available
+        if (data.billingCampaign) {
+            // Create the campaign in the database
+            const { data: campaign, error: campaignError } = await supabaseAdmin
+                .from('campaigns')
+                .insert({
+                    name: data.billingCampaign.name,
+                    type: 'billing',
+                    status: 'draft',
+                    target_count: data.billingCampaign.targetPatients,
+                    created_by: userId
+                })
+                .select()
+                .single();
+                
+            if (campaignError) {
+                console.error(`Failed to create campaign: ${campaignError.message}`);
+            } else {
+                // Add to changes
+                changes.push({
+                    campaign_id: campaign.id,
+                    campaign_name: data.billingCampaign.name,
+                    target_count: data.billingCampaign.targetPatients,
+                    expected_revenue: data.billingCampaign.expectedRevenue
+                });
+            }
+        }
+        
+        return { changes, insights: 0 };
+    } catch (error) {
+        console.error('Error applying revenue insight:', error);
+        throw new Error(`Failed to apply revenue insight: ${error.message}`);
+    }
 };
 
-const applyPatientInsight = async (insight) => {
-    // Implementation for patient insights
-    // This could involve sending reminders, generating follow-up appointments, etc.
-
-    // Example implementation:
-    const { data, error } = await supabaseAdmin.rpc('apply_patient_insight', {
-        insight_id: insight.id,
-        insight_data: insight.data
-    });
-
-    if (error) throw new Error(`Failed to apply patient insight: ${error.message}`);
-
-    return data;
+/**
+ * Implementation for applying patient insights
+ */
+const applyPatientInsight = async (insight, userId) => {
+    try {
+        const changes = [];
+        const data = insight.data;
+        
+        // Make sure we have valid data to work with
+        if (!data) {
+            return { changes: [], insights: 0 };
+        }
+        
+        // Process follow-ups
+        if (data.followUps && Array.isArray(data.followUps)) {
+            for (const followUp of data.followUps) {
+                // Create an appointment for the follow-up
+                const { data: appointment, error: apptError } = await supabaseAdmin
+                    .from('appointments')
+                    .insert({
+                        patient_id: followUp.id,
+                        date: followUp.suggestedDate,
+                        time: '10:00', // Default time as example
+                        type: 'follow-up',
+                        notes: `Follow-up appointment for ${followUp.reason}`,
+                        status: 'pending',
+                        created_by: userId
+                    })
+                    .select()
+                    .single();
+                    
+                if (apptError) {
+                    console.error(`Failed to create follow-up appointment: ${apptError.message}`);
+                    continue;
+                }
+                
+                // Add to changes
+                changes.push({
+                    appointment_id: appointment.id,
+                    patient_id: followUp.id,
+                    patient_name: followUp.name,
+                    reason: followUp.reason,
+                    date: followUp.suggestedDate,
+                    type: 'follow-up'
+                });
+            }
+        }
+        
+        // Process health check reminders
+        if (data.healthCheckReminders && Array.isArray(data.healthCheckReminders)) {
+            for (const reminder of data.healthCheckReminders) {
+                // Create a health reminder in the database
+                const { data: healthReminder, error: reminderError } = await supabaseAdmin
+                    .from('health_reminders')
+                    .insert({
+                        patient_id: reminder.id,
+                        reminder_type: reminder.checkType,
+                        due_date: reminder.dueDate,
+                        status: 'pending'
+                    })
+                    .select()
+                    .single();
+                    
+                if (reminderError) {
+                    console.error(`Failed to create health reminder: ${reminderError.message}`);
+                    continue;
+                }
+                
+                // Add to changes
+                changes.push({
+                    reminder_id: healthReminder.id,
+                    patient_id: reminder.id,
+                    patient_name: reminder.name,
+                    check_type: reminder.checkType,
+                    due_date: reminder.dueDate
+                });
+            }
+        }
+        
+        return { changes, insights: 0 };
+    } catch (error) {
+        console.error('Error applying patient insight:', error);
+        throw new Error(`Failed to apply patient insight: ${error.message}`);
+    }
 };
 
 module.exports = {
