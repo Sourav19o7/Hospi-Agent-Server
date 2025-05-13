@@ -137,8 +137,11 @@ const getInsightStats = asyncHandler(async (req, res) => {
 const applyInsight = asyncHandler(async (req, res) => {
     const { id } = req.params;
     
+    console.log("Reached here")
     // Use a transaction to ensure all operations are atomic
     const { data, error } = await supabaseAdmin.rpc('begin_transaction');
+
+    console.log("Error" , error)
     
     if (error) {
         res.status(500);
@@ -362,6 +365,7 @@ const generateInsights = asyncHandler(async (req, res) => {
             });
         }
     } catch (error) {
+        console.log(error)
         res.status(500);
         throw new Error(`Error generating insights: ${error.message}`);
     }
