@@ -274,6 +274,7 @@ function extractOutput(message) {
 
 module.exports = {
   sendEmail,
+  sendEmailSendGrid,
   scheduleReminders,
   extractOutput,
 };

@@ -1,6 +1,10 @@
 const asyncHandler = require('express-async-handler');
 const { supabaseAdmin } = require('../config/supabase');
-const { scheduleReminders, sendEmail } = require("../utils/helpers");
+const {
+  scheduleReminders,
+  sendEmail,
+  sendEmailSendGrid,
+} = require("../utils/helpers");
 /**
  * @desc    Get all appointments
  * @route   GET /api/appointments
@@ -268,7 +272,15 @@ const createAppointment = asyncHandler(async (req, res) => {
       throw new Error(fetchError.message);
     }
     console.log(patient);
-    sendEmail(date, time, type, patient.name, patient.email, "confirmation");
+    // sendEmail(date, time, type, patient.name, patient.email, "confirmation");
+    sendEmailSendGrid(
+      date,
+      time,
+      type,
+      patient.name,
+      patient.email,
+      "confirmation"
+    );
     scheduleReminders(date, time, type, patient.name, patient.email);
     res.status(201).json(appointmentWithPatient);
   } catch (error) {
