@@ -260,17 +260,17 @@ function extractOutput(message) {
 }
 
 // // Solution: Wrap the await call in an async function and execute it
-async function main() {
-  await sendEmailSendGrid(
-    "2025-05-16",
-    "11:30:00",
-    "Root Canal",
-    "Devesh",
-    "deveshshetty66@gmail.com"
-  );
-}
+// async function main() {
+//   await sendEmailSendGrid(
+//     "2025-05-16",
+//     "11:30:00",
+//     "Root Canal",
+//     "Devesh",
+//     "deveshshetty66@gmail.com"
+//   );
+// }
 
-main().catch((err) => console.error(err));
+// main().catch((err) => console.error(err));
 
 module.exports = {
   sendEmail,
