@@ -8,12 +8,13 @@ const { notFound, errorHandler } = require('./middlewares/errorMiddleware');
 // Routes
 const userRoutes = require('./routes/userRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
-const patientRoutes = require('./routes/patientRoutes');
-const patientAppointmentRoutes = require('./routes/patientAppointmentRoutes');
-const billingRoutes = require('./routes/billingRoutes');
-const inventoryRoutes = require('./routes/inventoryRoutes');
-const dashboardRoutes = require('./routes/dashboardRoutes');
-const insightRoutes = require('./routes/insightRoutes')
+const analysisRoutes = require("./routes/analysisRoutes");
+const patientRoutes = require("./routes/patientRoutes");
+const patientAppointmentRoutes = require("./routes/patientAppointmentRoutes");
+const billingRoutes = require("./routes/billingRoutes");
+const inventoryRoutes = require("./routes/inventoryRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
+const insightRoutes = require("./routes/insightRoutes");
 
 // Load environment variables
 dotenv.config();
@@ -28,19 +29,21 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Logger middleware for development
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
 }
 
 // API Routes
-app.use('/api/users', userRoutes);
-app.use('/api/appointments', appointmentRoutes);
-app.use('/api/patients', patientRoutes);
-app.use('/api/patients/:patientId/appointments', patientAppointmentRoutes);
-app.use('/api/billing', billingRoutes);
-app.use('/api/inventory', inventoryRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/insights', insightRoutes)
+app.use("/api/users", userRoutes);
+app.use("/api/appointments", appointmentRoutes);
+app.use("/api/patients", patientRoutes);
+app.use("/api/patients/:patientId/appointments", patientAppointmentRoutes);
+app.use("/api/billing", billingRoutes);
+app.use("/api/inventory", inventoryRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/insights", insightRoutes);
+app.use("/api/analysis", analysisRoutes);
+
 
 // Basic route for testing
 app.get('/api/status', (req, res) => {
