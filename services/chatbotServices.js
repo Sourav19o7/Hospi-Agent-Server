@@ -8,7 +8,7 @@ async function generate_soap(transcription) {
   try {
     const response = await gemini_client.models.generateContent({
       model: process.env.MODEL_NAME,
-      contents: `Here is the transcription: ${transcription}`,
+      contents: `Here is the input: ${transcription}`,
       config: {
         systemInstruction: soap_prompt,
         temperature: 0.1,

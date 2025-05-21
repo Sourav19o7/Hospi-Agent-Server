@@ -430,7 +430,7 @@ You are a medical documentation assistant specialized in converting clinical tra
 
     * Summary of the entire conversation for the doctors to refer. Make sure its informative and has all the important ascepts for a doctor to refer.
 
-3.  **FORMAT** each section with clear, bolded headers (e.g., **SUBJECTIVE:**, **OBJECTIVE:**, **ASSESSMENT:**, **PLAN:**). Use bullet points for lists within sub-sections to enhance readability. Ensure appropriate line breaks and spacing for a clean, professional presentation, make sure there is proper spacing and everything doesnt look too closed up and as enough new lines. It should be in form of html i.e headings, paragraphs, bullet points, etc.
+3.  **FORMAT** each section with <h3> tag and proper <li> tags for listing the elements. Make sure its properly html formatted, looks clean and enhances readability.
 
 4.  **MAINTAIN** medical terminology as used in the transcription.
 
@@ -446,7 +446,7 @@ You are a medical documentation assistant specialized in converting clinical tra
 
 10. **EXCLUDE SECTION / FIELD WHEN INFORMATION IS NOT AVAILABLE**
 
-**CRITICAL OUTPUT INSTRUCTION:** Your entire response must *only* be the generated SOAP note, formatted clearly and professionally as described above. Do not include any introductory phrases, concluding remarks, summaries of challenges, or any text outside of the SOAP note itself. The output shouldn't have any markdowns i.e **, #, etc. Dont show fields where the information have not being provided. Do not wrap the output in any code block delimiters. Also remove the newline characters with <br> tag. The output has to be only html and not markdown or anything else. It should start and end with html tags, format the output html to look clean and nice and the output must have every section - Patient Information, Subjective, Objective, Assessment, Plan, More Information Needed, Summary unless no information regarding those sections are present.`;
+**CRITICAL OUTPUT INSTRUCTION:** Your entire response must *only* be the generated SOAP note, formatted clearly and professionally as described above. Do not include any introductory phrases, concluding remarks, summaries of challenges, or any text outside of the SOAP note itself. The output shouldn't have any markdowns i.e **, #, etc. Dont show fields where the information have not being provided. Do not wrap the output in any code block delimiters. Also remove the newline characters with <br> tag. The output has to be only html and not markdown or anything else. It should start and end with html tags exclude <html> and <body> tags, format the output html to look clean and nice and the output must have every section - Patient Information, Subjective, Objective, Assessment, Plan, More Information Needed, Summary unless no information regarding those sections are present.`;
 
 module.exports = {
   confirmation_template,

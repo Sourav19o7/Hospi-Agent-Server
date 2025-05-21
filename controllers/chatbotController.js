@@ -2,8 +2,16 @@ const { generate_soap } = require("../services/chatbotServices");
 const asyncHandler = require("express-async-handler");
 
 function cleanHtml(htmlString) {
-  // Option 1: Remove all literal \n characters
-  return htmlString.replace(/\\n/g, "").replace(/\n/g, "");
+  // Remove all \n characters (both escaped and actual newlines)
+  let cleaned = htmlString.replace(/\\n/g, "").replace(/\n/g, "");
+
+  // Remove <html> and </html> tags
+  cleaned = cleaned.replace(/<html>/g, "").replace(/<\/html>/g, "");
+
+  // Remove <body> and </body> tags
+  cleaned = cleaned.replace(/<body>/g, "").replace(/<\/body>/g, "");
+
+  return cleaned;
 }
 
 const getSOAP = asyncHandler(async (req, res) => {
