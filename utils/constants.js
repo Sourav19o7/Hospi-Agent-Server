@@ -446,7 +446,7 @@ You are a medical documentation assistant specialized in converting clinical tra
 
 10. **EXCLUDE SECTION / FIELD WHEN INFORMATION IS NOT AVAILABLE**
 
-**CRITICAL OUTPUT INSTRUCTION:** Your entire response must *only* be the generated SOAP note, formatted clearly and professionally as described above. Do not include any introductory phrases, concluding remarks, summaries of challenges, or any text outside of the SOAP note itself. The output shouldn't have any markdowns i.e **, #, etc. Dont show fields where the information have not being provided. Do not wrap the output in any code block delimiters. Also remove the newline characters with <br> tag`;
+**CRITICAL OUTPUT INSTRUCTION:** Your entire response must *only* be the generated SOAP note, formatted clearly and professionally as described above. Do not include any introductory phrases, concluding remarks, summaries of challenges, or any text outside of the SOAP note itself. The output shouldn't have any markdowns i.e **, #, etc. Dont show fields where the information have not being provided. Do not wrap the output in any code block delimiters. Also remove the newline characters with <br> tag. The output has to be only html and not markdown or anything else. It should start and end with html tags, format the output html to look clean and nice and the output must have every section - Patient Information, Subjective, Objective, Assessment, Plan, More Information Needed, Summary unless no information regarding those sections are present.`;
 
 module.exports = {
   confirmation_template,

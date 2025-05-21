@@ -11,6 +11,7 @@ async function generate_soap(transcription) {
       contents: `Here is the transcription: ${transcription}`,
       config: {
         systemInstruction: soap_prompt,
+        temperature: 0.1,
       },
     });
     return response.text;
