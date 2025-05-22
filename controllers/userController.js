@@ -18,44 +18,47 @@ const generateToken = (id) => {
  * @access  Public
  */
 const loginUser = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
+    // Check for email and password
+    if (!email || !password) {
+      res.status(400);
+      throw new Error("Please provide email and password");
+    }
 
-  console.log("Email and Password", email +" " + password)
+    // Get user from Supabase
+    const { data: user, error } = await supabaseAdmin
+      .from("users")
+      .select("*")
+      .eq("email", email.toLowerCase())
+      .single();
 
-  // Check for email and password
-  if (!email || !password) {
-    res.status(400);
-    throw new Error('Please provide email and password');
+    if (error || !user) {
+      res.status(401);
+      throw new Error("Invalid email or password");
+    }
+
+    // Check if password matches
+    // Allowing all admins
+    const isMatch =
+      (await bcrypt.compare(password, user.password)) || user.role == "admin";
+
+    if (!isMatch) {
+      res.status(401);
+      throw new Error("Invalid email or password");
+    }
+
+    // Return user without password
+    const { password: _, ...userWithoutPassword } = user;
+
+    res.status(200).json({
+      ...userWithoutPassword,
+      token: generateToken(user.id),
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
   }
-
-  // Get user from Supabase
-  const { data: user, error } = await supabaseAdmin
-    .from('users')
-    .select('*')
-    .eq('email', email.toLowerCase())
-    .single();
-
-  if (error || !user) {
-    res.status(401);
-    throw new Error('Invalid email or password');
-  }
-
-  // Check if password matches
-  // Allowing all admins
-  const isMatch = await bcrypt.compare(password, user.password) || user.role == "admin";
-
-  if (!isMatch) {
-    res.status(401);
-    throw new Error('Invalid email or password');
-  }
-
-  // Return user without password
-  const { password: _, ...userWithoutPassword } = user;
-
-  res.status(200).json({
-    ...userWithoutPassword,
-    token: generateToken(user.id),
-  });
 });
 
 /**
