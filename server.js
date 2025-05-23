@@ -15,6 +15,7 @@ const billingRoutes = require("./routes/billingRoutes");
 const inventoryRoutes = require("./routes/inventoryRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const insightRoutes = require("./routes/insightRoutes");
+const authRoutes = require("./routes/authRoutes");
 
 // Load environment variables
 dotenv.config();
@@ -35,6 +36,7 @@ if (process.env.NODE_ENV === "development") {
 
 // API Routes
 app.use("/api/users", userRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/patients", patientRoutes);
 app.use("/api/patients/:patientId/appointments", patientAppointmentRoutes);

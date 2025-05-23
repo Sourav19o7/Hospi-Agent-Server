@@ -7,11 +7,12 @@ const { supabaseAdmin } = require('../config/supabase');
  * @access  Private
  */
 const getPatients = asyncHandler(async (req, res) => {
-  const { search } = req.query;
+  const { search,dortor_id } = req.query;
   
   let query = supabaseAdmin
     .from('patients')
     .select('*')
+    .eq('doctor_id',dortor_id)
     .order('created_at', { ascending: false });
     
   // Filter by search term if provided

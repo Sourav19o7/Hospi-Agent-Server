@@ -22,6 +22,7 @@ router.route('/')
 // Route: /api/appointments/today
 router.get('/today', getTodayAppointments);
 
+
 // Route: /api/appointments/stats
 router.get('/stats', getAppointmentStats);
 
