@@ -7,15 +7,13 @@ const { supabaseAdmin } = require('../config/supabase');
  * @access  Private
  */
 const getPatients = asyncHandler(async (req, res) => {
-  const { search,dortor_id } = req.query;
-  
+  const { search,doctor_id } = req.query;
   let query = supabaseAdmin
     .from('patients')
     .select('*')
-    .eq('doctor_id',dortor_id)
+    .eq('doctor_id',doctor_id)
     .order('created_at', { ascending: false });
     
-  // Filter by search term if provided
   if (search) {
     query = query.or(`name.ilike.%${search}%, contact.ilike.%${search}%`);
   }
@@ -89,7 +87,7 @@ const storePatientMedicalDocument = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const createPatient = asyncHandler(async (req, res) => {
-  const { name, age, gender, contact, address, email, medical_history } =
+  const { name, age, gender, contact, address, email, medical_history,doctor_id } =
     req.body;
 
   // Check for required fields
@@ -112,6 +110,7 @@ const createPatient = asyncHandler(async (req, res) => {
         medical_history: medical_history || null,
         status: "active",
         last_visit: null,
+        doctor_id: doctor_id || null,
       },
     ])
     .select()
