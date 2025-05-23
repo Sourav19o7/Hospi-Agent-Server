@@ -87,7 +87,7 @@ const storePatientMedicalDocument = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const createPatient = asyncHandler(async (req, res) => {
-  const { name, age, gender, contact, address, email, medical_history } =
+  const { name, age, gender, contact, address, email, medical_history,doctor_id } =
     req.body;
 
   // Check for required fields
@@ -110,6 +110,7 @@ const createPatient = asyncHandler(async (req, res) => {
         medical_history: medical_history || null,
         status: "active",
         last_visit: null,
+        doctor_id: doctor_id || null,
       },
     ])
     .select()
