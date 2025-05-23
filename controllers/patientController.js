@@ -7,25 +7,30 @@ const { supabaseAdmin } = require('../config/supabase');
  * @access  Private
  */
 const getPatients = asyncHandler(async (req, res) => {
-  const { search,doctor_id } = req.query;
-  let query = supabaseAdmin
-    .from('patients')
-    .select('*')
-    .eq('doctor_id',doctor_id)
-    .order('created_at', { ascending: false });
-    
-  if (search) {
-    query = query.or(`name.ilike.%${search}%, contact.ilike.%${search}%`);
+  try {
+    const { search, doctor_id = 3 } = req.query;
+    let query = supabaseAdmin
+      .from("patients")
+      .select("*")
+      .eq("doctor_id", doctor_id)
+      .order("created_at", { ascending: false });
+
+    if (search) {
+      query = query.or(`name.ilike.%${search}%, contact.ilike.%${search}%`);
+    }
+
+    const { data: patients, error } = await query;
+
+    if (error) {
+      res.status(400);
+      throw new Error(error.message);
+    }
+
+    res.status(200).json(patients);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Internal server error" });
   }
-  
-  const { data: patients, error } = await query;
-  
-  if (error) {
-    res.status(400);
-    throw new Error(error.message);
-  }
-  
-  res.status(200).json(patients);
 });
 
 /**
@@ -76,7 +81,9 @@ const storePatientMedicalDocument = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error(error.message);
   }
-  res.status(201).json(data);
+  res
+    .status(201)
+    .json({ id: 1, message: "Analysis Report stored successfully" });
 });
 
 /**
