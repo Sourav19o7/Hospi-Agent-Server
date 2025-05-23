@@ -78,7 +78,9 @@ const storePatientMedicalDocument = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error(error.message);
   }
-  res.status(201).json(data);
+  res
+    .status(201)
+    .json({ id: 1, message: "Analysis Report stored successfully" });
 });
 
 /**
