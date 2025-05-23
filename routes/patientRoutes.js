@@ -11,7 +11,7 @@ const {
 const { protect } = require("../middlewares/authMiddleware");
 
 // All routes are protected
-// router.use(protect);
+router.use(protect);
 
 // Route: /api/patients
 
