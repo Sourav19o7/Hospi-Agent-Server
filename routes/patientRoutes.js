@@ -11,11 +11,12 @@ const {
 const { protect } = require("../middlewares/authMiddleware");
 
 // All routes are protected
-router.use(protect);
+// router.use(protect);
 
 // Route: /api/patients
-router.route("/").get(getPatients).post(createPatient);
 
+router.route("/").get(getPatients).post(createPatient);
+  
 // Route: /api/patients/:id
 router
   .route("/:id")
